@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TODO App</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>TODO App</h1>
+
+    <div class="auth-section">
+      <h2>Signup / Signin</h2>
+      <input type="text" id="username" placeholder="Username" />
+      <input type="password" id="password" placeholder="Password" />
+      <button onclick="signup()">Signup</button>
+      <button onclick="signin()">Signin</button>
+      <p id="authMessage"></p>
+    </div>
+
+    <div class="todo-section" style="display:none;">
+      <h2>My TODOs</h2>
+      <div>
+        <input type="text" id="newTodo" placeholder="New task..." />
+        <button onclick="addTodo()">Add</button>
+      </div>
+      <ul id="todoList"></ul>
+    </div>
+  </div>
+
+  <script>
+    let token = "";
+
+    function signup() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      axios.post("/api/signup", { username, password })
+        .then(res => {
+          document.getElementById("authMessage").textContent = res.data.msg;
+        })
+        .catch(err => {
+          document.getElementById("authMessage").textContent = err.response?.data?.msg || "Signup failed";
+        });
+    }
+
+    function signin() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      axios.post("/api/signin", { username, password })
+        .then(res => {
+          token = res.data.token;
+          document.querySelector(".auth-section").style.display = "none";
+          document.querySelector(".todo-section").style.display = "block";
+          fetchTodos();
+        })
+        .catch(err => {
+          document.getElementById("authMessage").textContent = err.response?.data?.msg || "Signin failed";
+        });
+    }
+
+    function fetchTodos() {
+      axios.get("/api/todos", {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => {
+        const todoList = document.getElementById("todoList");
+        todoList.innerHTML = "";
+        res.data.forEach(todo => {
+          const li = document.createElement("li");
+          li.innerHTML = `
+            <input type="checkbox" ${todo.done ? "checked" : ""} onclick="toggleTodo(${todo.id}, ${!todo.done})" />
+            <span class="${todo.done ? 'done' : ''}">${todo.title}</span>
+            <button onclick="deleteTodo(${todo.id})">Delete</button>
+          `;
+          todoList.appendChild(li);
+        });
+      });
+    }
+
+    function addTodo() {
+      const title = document.getElementById("newTodo").value;
+      if (!title.trim()) return;
+
+      axios.post("/api/todos", { title }, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(() => {
+        document.getElementById("newTodo").value = "";
+        fetchTodos();
+      });
+    }
+
+    function toggleTodo(id, done) {
+      axios.put(`/api/todos/${id}`, { done }, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(fetchTodos);
+    }
+
+    function deleteTodo(id) {
+      axios.delete(`/api/todos/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(fetchTodos);
+    }
+  </script>
+</body>
+</html>
